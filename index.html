@@ -102,8 +102,10 @@ async function load(){
   ALL=[];
   for(let i=h+1;i<rows.length;i++){const rw=rows[i];if(!rw||!rw[iD])continue;
    const d=new Date(rw[iD]);if(isNaN(d))continue;
-   ALL.push({d,wt:num(rw[iW]),avg:iA>=0?num(rw[iA]):null,kc:iK>=0?num(rw[iK]):null,
-     p:iP>=0?num(rw[iP]):null,c:iC>=0?num(rw[iC]):null,f:iF>=0?num(rw[iF]):null,tgt:iT>=0?num(rw[iT]):null})}
+   // formula-filled future rows read as 0 — treat 0 weight/kcal/macros as not logged
+   const z=x=>x===0?null:x;
+   ALL.push({d,wt:z(num(rw[iW])),avg:iA>=0?z(num(rw[iA])):null,kc:iK>=0?z(num(rw[iK])):null,
+     p:iP>=0?z(num(rw[iP])):null,c:iC>=0?z(num(rw[iC])):null,f:iF>=0?z(num(rw[iF])):null,tgt:iT>=0?z(num(rw[iT])):null})}
   ALL.sort((a,b)=>a.d-b.d);
   // drop trailing pre-filled date rows that have no logged values yet
   const hasData=r=>[r.wt,r.kc,r.p,r.c,r.f].some(x=>x!=null);
