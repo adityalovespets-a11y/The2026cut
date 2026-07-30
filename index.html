@@ -2,43 +2,95 @@
 <title>Aditya — Live Cut Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-:root{--ink:#1a1a19;--mut:#6b6a65;--line:#e1e0d9;--card:#faf9f6;--blue:#2a78d6;--green:#1baf7a;--amber:#eda100;--red:#e34948;--gray:#c3c2b7}
-*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:#fff;margin:0;padding:24px;max-width:1000px;margin:0 auto}
-h1{font-size:22px;font-weight:600;margin:0 0 2px}.sub{color:var(--mut);font-size:14px;margin:0 0 20px}
-button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;color:var(--ink)}button:hover{background:var(--card)}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:26px}
-.kpi{background:var(--card);border-radius:10px;padding:16px}
-.kpi .l{font-size:12px;color:var(--mut);margin-bottom:4px}.kpi .v{font-size:26px;font-weight:600}.kpi .d{font-size:12px;color:var(--green);margin-top:2px}
-.card{border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:20px}
-.card h2{font-size:16px;font-weight:600;margin:0 0 12px}
-.wrap{position:relative;height:300px}
-.leg{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-bottom:8px}
-.leg span{display:flex;align-items:center;gap:5px}.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
-#err{color:var(--red);font-size:14px;padding:12px;background:#fdeeee;border-radius:8px;display:none}
+:root{
+  color-scheme:light;
+  --page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--mut:#898781;
+  --grid:#e1e0d9;--baseline:#c3c2b7;--ring:rgba(11,11,11,.10);
+  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--good:#006300;
+}
+@media (prefers-color-scheme:dark){:root{
+  color-scheme:dark;
+  --page:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink2:#c3c2b7;--mut:#898781;
+  --grid:#2c2c2a;--baseline:#383835;--ring:rgba(255,255,255,.10);
+  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--good:#0ca30c;
+}}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--page);margin:0 auto;padding:28px clamp(16px,3vw,40px);max-width:1440px}
+h1{font-size:22px;font-weight:600;margin:0 0 2px}
+.sub{color:var(--ink2);font-size:13px;margin:0}
+.top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+button{font:inherit;font-size:13px;border:1px solid var(--ring);background:var(--surface);border-radius:8px;padding:6px 14px;cursor:pointer;color:var(--ink)}
+button:hover{border-color:var(--baseline)}
+.filters{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.filters .lbl{font-size:12px;color:var(--mut);margin-right:2px}
+.chip{padding:6px 12px;border-radius:8px;font-size:13px}
+.chip.on{background:var(--ink);color:var(--page);border-color:var(--ink)}
+.filters .sep{width:1px;height:22px;background:var(--grid);margin:0 6px}
+.filters input[type=date]{font:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--ring);border-radius:8px;padding:5px 8px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:22px}
+.kpi{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:16px 18px}
+.kpi .l{font-size:12px;color:var(--ink2);margin-bottom:4px}
+.kpi .v{font-size:27px;font-weight:600;letter-spacing:-.01em}
+.kpi .d{font-size:12px;color:var(--mut);margin-top:3px}
+.kpi .d.g{color:var(--good)}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:20px 22px;margin-bottom:20px}
+.card h2{font-size:15px;font-weight:600;margin:0 0 10px}
+.wrap{position:relative;height:440px}
+.wrap.short{height:340px}
+@media (max-width:640px){.wrap{height:300px}.wrap.short{height:260px}}
+.leg{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin-bottom:10px}
+.leg span{display:flex;align-items:center;gap:6px}
+.sw{width:16px;height:3px;border-radius:2px;display:inline-block}
+.sw.dash{background:repeating-linear-gradient(90deg,var(--baseline) 0 4px,transparent 4px 7px)!important}
+#err{color:#d03b3b;font-size:14px;padding:12px;background:color-mix(in srgb,#d03b3b 8%,var(--surface));border-radius:8px;display:none;margin-bottom:16px}
+details{margin:4px 0 24px}
+summary{font-size:13px;color:var(--ink2);cursor:pointer;padding:6px 2px}
+table{border-collapse:collapse;width:100%;font-size:13px;background:var(--surface);border:1px solid var(--ring);border-radius:12px;overflow:hidden}
+th,td{text-align:right;padding:7px 12px;border-bottom:1px solid var(--grid);font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--ink2);font-weight:500;font-size:12px}
+tr:last-child td{border-bottom:none}
 </style></head><body>
-<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+<div class="top">
  <div><h1>Cut Dashboard</h1><p class="sub" id="stamp">Loading live data…</p></div>
  <button onclick="load()">↻ Refresh</button>
 </div>
 <div id="err"></div>
+<div class="filters" id="filters">
+ <span class="lbl">Range</span>
+ <button class="chip" data-days="7">7D</button>
+ <button class="chip" data-days="14">14D</button>
+ <button class="chip on" data-days="30">30D</button>
+ <button class="chip" data-days="90">90D</button>
+ <button class="chip" data-days="all">All</button>
+ <span class="sep"></span>
+ <input type="date" id="from" aria-label="From date"> <span class="lbl">to</span>
+ <input type="date" id="to" aria-label="To date">
+</div>
 <div class="kpis" id="kpis"></div>
-<div class="card"><h2>Weight & 7-day average</h2>
- <div class="leg"><span><i class="sw" style="background:var(--gray)"></i>Daily</span><span><i class="sw" style="background:var(--blue)"></i>7-day avg</span></div>
+<div class="card"><h2>Weight &amp; 7-day average</h2>
+ <div class="leg"><span><i class="sw" style="background:var(--mut)"></i>Daily</span><span><i class="sw" style="background:var(--s1)"></i>7-day avg</span></div>
  <div class="wrap"><canvas id="w"></canvas></div></div>
 <div class="card"><h2>Calories</h2>
- <div class="leg"><span><i class="sw" style="background:var(--blue)"></i>Intake</span><span><i class="sw" style="background:var(--gray)"></i>Target</span></div>
- <div class="wrap"><canvas id="c"></canvas></div></div>
+ <div class="leg"><span><i class="sw" style="background:var(--s1)"></i>Intake</span><span><i class="sw dash"></i>Target</span></div>
+ <div class="wrap short"><canvas id="c"></canvas></div></div>
 <div class="card"><h2>Macros (grams)</h2>
- <div class="leg"><span><i class="sw" style="background:var(--green)"></i>Protein</span><span><i class="sw" style="background:var(--amber)"></i>Carbs</span><span><i class="sw" style="background:var(--red)"></i>Fat</span></div>
- <div class="wrap"><canvas id="m"></canvas></div></div>
+ <div class="leg"><span><i class="sw" style="background:var(--s1)"></i>Protein</span><span><i class="sw" style="background:var(--s2)"></i>Carbs</span><span><i class="sw" style="background:var(--s3)"></i>Fat</span></div>
+ <div class="wrap short"><canvas id="m"></canvas></div></div>
+<details><summary>Data table (selected range)</summary><div id="tbl"></div></details>
 <script>
 const CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vRCuW-WCVlGerVbYM8zqFGkZlumR8n0yK7ukIiggccqE7QY-xRI3cnEuOr5RnXK2IH1X-ktTOWcF_A_/pub?gid=201512278&single=true&output=csv";
-let charts=[];
+const GOAL=80,KCAL_DEFAULT=1850;
+let ALL=[],charts=[],range={mode:'preset',days:30,from:null,to:null};
+const $=id=>document.getElementById(id);
+const cv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 function parseCSV(t){const rows=[];let f='',row=[],q=false;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=c}else{if(c=='"')q=true;else if(c==',')row.push(f),f='';else if(c=='\n'||c=='\r'){if(c=='\r'&&t[i+1]=='\n')i++;row.push(f);rows.push(row);row=[];f=''}else f+=c}}if(f!==''||row.length)row.push(f),rows.push(row);return rows}
 function num(x){const n=parseFloat((x||'').toString().replace(/[^0-9.\-]/g,''));return isNaN(n)?null:n}
-function fmtDate(s){const d=new Date(s);if(isNaN(d))return s;return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+const fmtD=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+
 async function load(){
- const err=document.getElementById('err');err.style.display='none';
+ $('err').style.display='none';
  try{
   const r=await fetch(CSV+'&_='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);
   const rows=parseCSV(await r.text());
@@ -47,34 +99,108 @@ async function load(){
   const H=rows[h].map(x=>(x||'').toLowerCase().trim());
   const col=(...names)=>{for(const n of names){const i=H.findIndex(v=>v===n||v.startsWith(n));if(i>=0)return i}return -1};
   const iD=col('date'),iW=col('weight'),iA=col('7-day avg','7 day avg','7-day','avg'),iK=col('kcal','calories'),iP=col('protein'),iC=col('carbs','carbohydrate'),iF=col('fat'),iT=col('target');
-  const L=[],wt=[],avg=[],kc=[],P=[],C=[],F=[],tgt=[];
+  ALL=[];
   for(let i=h+1;i<rows.length;i++){const rw=rows[i];if(!rw||!rw[iD])continue;
-   L.push(fmtDate(rw[iD]));wt.push(num(rw[iW]));avg.push(iA>=0?num(rw[iA]):null);
-   kc.push(iK>=0?num(rw[iK]):null);P.push(iP>=0?num(rw[iP]):null);C.push(iC>=0?num(rw[iC]):null);F.push(iF>=0?num(rw[iF]):null);tgt.push(iT>=0?num(rw[iT]):null)}
-  render(L,wt,avg,kc,P,C,F,tgt);
-  document.getElementById('stamp').textContent='Live from Google Sheet · updated '+new Date().toLocaleString();
- }catch(e){err.textContent='Could not load the sheet: '+e.message+'  — if this is a CORS/file error, open the dashboard from a web host or Google Drive preview rather than a local file.';err.style.display='block';document.getElementById('stamp').textContent='Load failed';}
+   const d=new Date(rw[iD]);if(isNaN(d))continue;
+   ALL.push({d,wt:num(rw[iW]),avg:iA>=0?num(rw[iA]):null,kc:iK>=0?num(rw[iK]):null,
+     p:iP>=0?num(rw[iP]):null,c:iC>=0?num(rw[iC]):null,f:iF>=0?num(rw[iF]):null,tgt:iT>=0?num(rw[iT]):null})}
+  ALL.sort((a,b)=>a.d-b.d);
+  if(!ALL.some(r=>r.avg!=null)){for(let i=0;i<ALL.length;i++){const win=ALL.slice(Math.max(0,i-6),i+1).map(r=>r.wt).filter(x=>x!=null);ALL[i].avg=win.length?win.reduce((a,b)=>a+b,0)/win.length:null}}
+  if(!ALL.length)throw new Error('No data rows found.');
+  const first=ALL[0].d,last=ALL[ALL.length-1].d;
+  const fi=$('from'),ti=$('to');fi.min=ti.min=iso(first);fi.max=ti.max=iso(last);
+  applyRange();
+  $('stamp').textContent='Live from Google Sheet · updated '+new Date().toLocaleString();
+ }catch(e){$('err').textContent='Could not load the sheet: '+e.message;$('err').style.display='block';$('stamp').textContent='Load failed'}
 }
-function render(L,wt,avg,kc,P,C,F,tgt){
- const wv=wt.filter(x=>x!=null);const start=wv[0],cur=wv[wv.length-1];
- const idx=wt.map((v,i)=>v!=null?i:-1).filter(i=>i>=0);const days=idx.length>1?idx[idx.length-1]-idx[0]:1;
- const rate=days>0?((start-cur)/days*7):0;
- document.getElementById('kpis').innerHTML=[
-  ['Start weight',start!=null?start.toFixed(1):'—',''],['Current',cur!=null?cur.toFixed(1):'—',L[idx[idx.length-1]]||''],
-  ['Total lost',(start-cur).toFixed(1)+' kg',rate.toFixed(2)+' kg/wk'],['Goal','80 kg','']
- ].map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${k[2]}</div></div>`).join('');
+
+function applyRange(){
+ if(!ALL.length)return;
+ const last=ALL[ALL.length-1].d;let from,to=last;
+ if(range.mode==='custom'){from=range.from||ALL[0].d;to=range.to||last}
+ else if(range.days==='all'){from=ALL[0].d}
+ else{from=new Date(last);from.setDate(from.getDate()-(range.days-1))}
+ const sub=ALL.filter(r=>r.d>=from&&r.d<=to);
+ $('from').value=iso(sub.length?sub[0].d:from);$('to').value=iso(to);
+ render(sub);
+}
+
+$('filters').addEventListener('click',e=>{
+ const b=e.target.closest('.chip');if(!b)return;
+ document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+ range={mode:'preset',days:b.dataset.days==='all'?'all':+b.dataset.days,from:null,to:null};
+ applyRange();
+});
+['from','to'].forEach(id=>$(id).addEventListener('change',()=>{
+ document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+ const f=$('from').value?new Date($('from').value+'T00:00:00'):null;
+ const t=$('to').value?new Date($('to').value+'T23:59:59'):null;
+ range={mode:'custom',from:f,to:t};
+ applyRange();
+}));
+
+const crosshair={id:'crosshair',afterDatasetsDraw(ch){
+ const els=ch.tooltip&&ch.tooltip.getActiveElements();if(!els||!els.length)return;
+ const x=els[0].element.x,{top,bottom}=ch.chartArea,ctx=ch.ctx;
+ ctx.save();ctx.strokeStyle=cv('--baseline');ctx.lineWidth=1;
+ ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,bottom);ctx.stroke();ctx.restore();}};
+
+function baseOpts(unit){
+ return {responsive:true,maintainAspectRatio:false,animation:false,spanGaps:true,
+  interaction:{mode:'index',intersect:false},
+  plugins:{legend:{display:false},tooltip:{
+   backgroundColor:cv('--ink'),titleColor:cv('--page'),bodyColor:cv('--page'),
+   padding:10,cornerRadius:8,boxPadding:4,usePointStyle:true,
+   callbacks:{label:c=>{const v=c.parsed.y;return v==null?null:' '+c.dataset.label+': '+(unit==='kg'?v.toFixed(1)+' kg':Math.round(v)+(unit?' '+unit:''))}}}},
+  scales:{x:{grid:{display:false},border:{color:cv('--baseline')},ticks:{maxRotation:0,autoSkip:true,autoSkipPadding:24,color:cv('--mut')}},
+   y:{grid:{color:cv('--grid')},border:{display:false},ticks:{color:cv('--mut'),callback:v=>unit==='kg'?v+' kg':v}}}};
+}
+function render(sub){
+ const L=sub.map(r=>fmtD(r.d)),wt=sub.map(r=>r.wt),avg=sub.map(r=>r.avg),kc=sub.map(r=>r.kc),
+  P=sub.map(r=>r.p),C=sub.map(r=>r.c),F=sub.map(r=>r.f),
+  tgt=sub.some(r=>r.tgt!=null)?sub.map(r=>r.tgt):sub.map(()=>KCAL_DEFAULT);
+ const wIdx=sub.map((r,i)=>r.wt!=null?i:-1).filter(i=>i>=0);
+ const start=wIdx.length?sub[wIdx[0]].wt:null,cur=wIdx.length?sub[wIdx[wIdx.length-1]].wt:null;
+ const days=wIdx.length>1?(sub[wIdx[wIdx.length-1]].d-sub[wIdx[0]].d)/864e5:0;
+ const lost=start!=null&&cur!=null?start-cur:null;
+ const rate=days>0&&lost!=null?lost/days*7:null;
+ const kcv=kc.filter(x=>x!=null),kAvg=kcv.length?kcv.reduce((a,b)=>a+b,0)/kcv.length:null;
+ const kpi=(l,v,d,g)=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="d${g?' g':''}">${d||''}</div></div>`;
+ $('kpis').innerHTML=
+  kpi('Start (range)',start!=null?start.toFixed(1)+' kg':'—',wIdx.length?fmtD(sub[wIdx[0]].d):'')+
+  kpi('Current',cur!=null?cur.toFixed(1)+' kg':'—',wIdx.length?fmtD(sub[wIdx[wIdx.length-1]].d):'')+
+  kpi('Lost in range',lost!=null?lost.toFixed(1)+' kg':'—',rate!=null?rate.toFixed(2)+' kg/wk':'',lost>0)+
+  kpi('Avg intake',kAvg!=null?Math.round(kAvg)+' kcal':'—','over '+kcv.length+' logged days')+
+  kpi('To goal',cur!=null?(cur-GOAL).toFixed(1)+' kg':'—','goal '+GOAL+' kg');
  charts.forEach(c=>c.destroy());charts=[];
- const g={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},spanGaps:true,scales:{x:{grid:{display:false},ticks:{maxRotation:45,autoSkip:true}},y:{grid:{color:'#eee'}}}};
- charts.push(new Chart(w,{type:'line',data:{labels:L,datasets:[
-  {data:wt,borderColor:'#c3c2b7',borderWidth:1.5,pointRadius:2,tension:.2,spanGaps:true},
-  {data:avg,borderColor:'#2a78d6',borderWidth:2.5,pointRadius:0,tension:.3,spanGaps:true}]},options:{...g,scales:{...g.scales,y:{grid:{color:'#eee'},ticks:{callback:v=>v+' kg'}}}}}));
- charts.push(new Chart(c,{type:'line',data:{labels:L,datasets:[
-  {data:kc,borderColor:'#2a78d6',borderWidth:2,pointRadius:2,tension:.2,spanGaps:true},
-  {data:tgt.some(x=>x)?tgt:L.map(()=>1850),borderColor:'#c3c2b7',borderDash:[5,4],borderWidth:1,pointRadius:0}]},options:g}));
- charts.push(new Chart(m,{type:'line',data:{labels:L,datasets:[
-  {data:P,borderColor:'#1baf7a',borderWidth:2,pointRadius:2,tension:.2,spanGaps:true},
-  {data:C,borderColor:'#eda100',borderWidth:2,pointRadius:2,tension:.2,spanGaps:true},
-  {data:F,borderColor:'#e34948',borderWidth:2,pointRadius:2,tension:.2,spanGaps:true}]},options:g}));
+ Chart.defaults.font.family='system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+ Chart.defaults.font.size=12;
+ charts.push(new Chart($('w'),{type:'line',plugins:[crosshair],data:{labels:L,datasets:[
+  {label:'Daily',data:wt,borderColor:cv('--mut'),borderWidth:1.5,pointRadius:1.5,pointHoverRadius:4,tension:.2},
+  {label:'7-day avg',data:avg,borderColor:cv('--s1'),borderWidth:2.5,pointRadius:0,pointHoverRadius:4,tension:.3}]},
+  options:baseOpts('kg')}));
+ charts.push(new Chart($('c'),{type:'line',plugins:[crosshair],data:{labels:L,datasets:[
+  {label:'Intake',data:kc,borderColor:cv('--s1'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2},
+  {label:'Target',data:tgt,borderColor:cv('--baseline'),borderDash:[5,4],borderWidth:1.5,pointRadius:0,pointHoverRadius:0}]},
+  options:baseOpts('kcal')}));
+ charts.push(new Chart($('m'),{type:'line',plugins:[crosshair],data:{labels:L,datasets:[
+  {label:'Protein',data:P,borderColor:cv('--s1'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2},
+  {label:'Carbs',data:C,borderColor:cv('--s2'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2},
+  {label:'Fat',data:F,borderColor:cv('--s3'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2}]},
+  options:baseOpts('g')}));
+ // table cells use textContent — sheet values are untrusted
+ const tbl=$('tbl');tbl.replaceChildren();
+ const t=document.createElement('table'),tr=document.createElement('tr');
+ ['Date','Weight (kg)','7-day avg','kcal','Protein (g)','Carbs (g)','Fat (g)'].forEach(h=>{const th=document.createElement('th');th.textContent=h;tr.appendChild(th)});
+ t.appendChild(tr);
+ sub.forEach(r=>{const row=document.createElement('tr');
+  [fmtD(r.d),r.wt!=null?r.wt.toFixed(1):'—',r.avg!=null?r.avg.toFixed(1):'—',
+   r.kc!=null?String(Math.round(r.kc)):'—',r.p!=null?String(Math.round(r.p)):'—',r.c!=null?String(Math.round(r.c)):'—',r.f!=null?String(Math.round(r.f)):'—']
+  .forEach(v=>{const td=document.createElement('td');td.textContent=v;row.appendChild(td)});
+  t.appendChild(row)});
+ tbl.appendChild(t);
 }
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>applyRange());
+setInterval(load,300000);
 load();
 </script></body></html>
