@@ -1,0 +1,80 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aditya — Live Cut Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--ink:#1a1a19;--mut:#6b6a65;--line:#e1e0d9;--card:#faf9f6;--blue:#2a78d6;--green:#1baf7a;--amber:#eda100;--red:#e34948;--gray:#c3c2b7}
+*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:#fff;margin:0;padding:24px;max-width:1000px;margin:0 auto}
+h1{font-size:22px;font-weight:600;margin:0 0 2px}.sub{color:var(--mut);font-size:14px;margin:0 0 20px}
+button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;color:var(--ink)}button:hover{background:var(--card)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:26px}
+.kpi{background:var(--card);border-radius:10px;padding:16px}
+.kpi .l{font-size:12px;color:var(--mut);margin-bottom:4px}.kpi .v{font-size:26px;font-weight:600}.kpi .d{font-size:12px;color:var(--green);margin-top:2px}
+.card{border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:20px}
+.card h2{font-size:16px;font-weight:600;margin:0 0 12px}
+.wrap{position:relative;height:300px}
+.leg{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-bottom:8px}
+.leg span{display:flex;align-items:center;gap:5px}.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+#err{color:var(--red);font-size:14px;padding:12px;background:#fdeeee;border-radius:8px;display:none}
+</style></head><body>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+ <div><h1>Cut Dashboard</h1><p class="sub" id="stamp">Loading live data…</p></div>
+ <button onclick="load()">↻ Refresh</button>
+</div>
+<div id="err"></div>
+<div class="kpis" id="kpis"></div>
+<div class="card"><h2>Weight & 7-day average</h2>
+ <div class="leg"><span><i class="sw" style="background:var(--gray)"></i>Daily</span><span><i class="sw" style="background:var(--blue)"></i>7-day avg</span></div>
+ <div class="wrap"><canvas id="w"></canvas></div></div>
+<div class="card"><h2>Calories</h2>
+ <div class="leg"><span><i class="sw" style="background:var(--blue)"></i>Intake</span><span><i class="sw" style="background:var(--gray)"></i>Target</span></div>
+ <div class="wrap"><canvas id="c"></canvas></div></div>
+<div class="card"><h2>Macros (grams)</h2>
+ <div class="leg"><span><i class="sw" style="background:var(--green)"></i>Protein</span><span><i class="sw" style="background:var(--amber)"></i>Carbs</span><span><i class="sw" style="background:var(--red)"></i>Fat</span></div>
+ <div class="wrap"><canvas id="m"></canvas></div></div>
+<script>
+const CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vRCuW-WCVlGerVbYM8zqFGkZlumR8n0yK7ukIiggccqE7QY-xRI3cnEuOr5RnXK2IH1X-ktTOWcF_A_/pub?gid=201512278&single=true&output=csv";
+let charts=[];
+function parseCSV(t){const rows=[];let f='',row=[],q=false;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=c}else{if(c=='"')q=true;else if(c==',')row.push(f),f='';else if(c=='\n'||c=='\r'){if(c=='\r'&&t[i+1]=='\n')i++;row.push(f);rows.push(row);row=[];f=''}else f+=c}}if(f!==''||row.length)row.push(f),rows.push(row);return rows}
+function num(x){const n=parseFloat((x||'').toString().replace(/[^0-9.\-]/g,''));return isNaN(n)?null:n}
+function fmtDate(s){const d=new Date(s);if(isNaN(d))return s;return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+async function load(){
+ const err=document.getElementById('err');err.style.display='none';
+ try{
+  const r=await fetch(CSV+'&_='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);
+  const rows=parseCSV(await r.text());
+  let h=-1;for(let i=0;i<rows.length;i++){const j=rows[i].map(x=>(x||'').toLowerCase().trim());if(j.includes('date')&&j.some(v=>v.startsWith('weight'))){h=i;break}}
+  if(h<0)throw new Error('Could not find a header row with Date/Weight. Check the published tab.');
+  const H=rows[h].map(x=>(x||'').toLowerCase().trim());
+  const col=(...names)=>{for(const n of names){const i=H.findIndex(v=>v===n||v.startsWith(n));if(i>=0)return i}return -1};
+  const iD=col('date'),iW=col('weight'),iA=col('7-day avg','7 day avg','7-day','avg'),iK=col('kcal','calories'),iP=col('protein'),iC=col('carbs','carbohydrate'),iF=col('fat'),iT=col('target');
+  const L=[],wt=[],avg=[],kc=[],P=[],C=[],F=[],tgt=[];
+  for(let i=h+1;i<rows.length;i++){const rw=rows[i];if(!rw||!rw[iD])continue;
+   L.push(fmtDate(rw[iD]));wt.push(num(rw[iW]));avg.push(iA>=0?num(rw[iA]):null);
+   kc.push(iK>=0?num(rw[iK]):null);P.push(iP>=0?num(rw[iP]):null);C.push(iC>=0?num(rw[iC]):null);F.push(iF>=0?num(rw[iF]):null);tgt.push(iT>=0?num(rw[iT]):null)}
+  render(L,wt,avg,kc,P,C,F,tgt);
+  document.getElementById('stamp').textContent='Live from Google Sheet · updated '+new Date().toLocaleString();
+ }catch(e){err.textContent='Could not load the sheet: '+e.message+'  — if this is a CORS/file error, open the dashboard from a web host or Google Drive preview rather than a local file.';err.style.display='block';document.getElementById('stamp').textContent='Load failed';}
+}
+function render(L,wt,avg,kc,P,C,F,tgt){
+ const wv=wt.filter(x=>x!=null);const start=wv[0],cur=wv[wv.length-1];
+ const idx=wt.map((v,i)=>v!=null?i:-1).filter(i=>i>=0);const days=idx.length>1?idx[idx.length-1]-idx[0]:1;
+ const rate=days>0?((start-cur)/days*7):0;
+ document.getElementById('kpis').innerHTML=[
+  ['Start weight',start!=null?start.toFixed(1):'—',''],['Current',cur!=null?cur.toFixed(1):'—',L[idx[idx.length-1]]||''],
+  ['Total lost',(start-cur).toFixed(1)+' kg',rate.toFixed(2)+' kg/wk'],['Goal','80 kg','']
+ ].map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${k[2]}</div></div>`).join('');
+ charts.forEach(c=>c.destroy());charts=[];
+ const g={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},spanGaps:true,scales:{x:{grid:{display:false},ticks:{maxRotation:45,autoSkip:true}},y:{grid:{color:'#eee'}}}};
+ charts.push(new Chart(w,{type:'line',data:{labels:L,datasets:[
+  {data:wt,borderColor:'#c3c2b7',borderWidth:1.5,pointRadius:2,tension:.2,spanGaps:true},
+  {data:avg,borderColor:'#2a78d6',borderWidth:2.5,pointRadius:0,tension:.3,spanGaps:true}]},options:{...g,scales:{...g.scales,y:{grid:{color:'#eee'},ticks:{callback:v=>v+' kg'}}}}}));
+ charts.push(new Chart(c,{type:'line',data:{labels:L,datasets:[
+  {data:kc,borderColor:'#2a78d6',borderWidth:2,pointRadius:2,tension:.2,spanGaps:true},
+  {data:tgt.some(x=>x)?tgt:L.map(()=>1850),borderColor:'#c3c2b7',borderDash:[5,4],borderWidth:1,pointRadius:0}]},options:g}));
+ charts.push(new Chart(m,{type:'line',data:{labels:L,datasets:[
+  {data:P,borderColor:'#1baf7a',borderWidth:2,pointRadius:2,tension:.2,spanGaps:true},
+  {data:C,borderColor:'#eda100',borderWidth:2,pointRadius:2,tension:.2,spanGaps:true},
+  {data:F,borderColor:'#e34948',borderWidth:2,pointRadius:2,tension:.2,spanGaps:true}]},options:g}));
+}
+load();
+</script></body></html>
