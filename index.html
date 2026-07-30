@@ -35,13 +35,15 @@ button:hover{border-color:var(--baseline)}
 .kpi .d.g{color:var(--good)}
 .card{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:20px 22px;margin-bottom:20px}
 .card h2{font-size:15px;font-weight:600;margin:0 0 10px}
+.note{font-size:12px;color:var(--mut);margin:8px 0 0}
 .wrap{position:relative;height:440px}
 .wrap.short{height:340px}
 @media (max-width:640px){.wrap{height:300px}.wrap.short{height:260px}}
 .leg{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin-bottom:10px}
 .leg span{display:flex;align-items:center;gap:6px}
 .sw{width:16px;height:3px;border-radius:2px;display:inline-block}
-.sw.dash{background:repeating-linear-gradient(90deg,var(--baseline) 0 4px,transparent 4px 7px)!important}
+.sw.dash{background:repeating-linear-gradient(90deg,var(--c,var(--baseline)) 0 4px,transparent 4px 7px)!important}
+.sw.band{width:14px;height:12px;border-radius:3px;opacity:.25}
 #err{color:#d03b3b;font-size:14px;padding:12px;background:color-mix(in srgb,#d03b3b 8%,var(--surface));border-radius:8px;display:none;margin-bottom:16px}
 details{margin:4px 0 24px}
 summary{font-size:13px;color:var(--ink2);cursor:pointer;padding:6px 2px}
@@ -68,11 +70,15 @@ tr:last-child td{border-bottom:none}
  <input type="date" id="to" aria-label="To date">
 </div>
 <div class="kpis" id="kpis"></div>
-<div class="card"><h2>Weight &amp; 7-day average</h2>
- <div class="leg"><span><i class="sw" style="background:var(--mut)"></i>Daily</span><span><i class="sw" style="background:var(--s1)"></i>7-day avg</span></div>
+<div class="card"><h2>Weight — actual vs plan</h2>
+ <div class="leg"><span><i class="sw" style="background:var(--mut)"></i>Daily</span><span><i class="sw" style="background:var(--s1)"></i>7-day avg</span><span><i class="sw dash" style="--c:var(--s1)"></i>Plan</span><span><i class="sw dash"></i>Goal 80 kg</span><span><i class="sw band" style="background:var(--s3)"></i>Refeed week</span></div>
  <div class="wrap"><canvas id="w"></canvas></div></div>
-<div class="card"><h2>Calories</h2>
- <div class="leg"><span><i class="sw" style="background:var(--s1)"></i>Intake</span><span><i class="sw dash"></i>Target</span></div>
+<div class="card"><h2>Est. body fat %</h2>
+ <div class="leg"><span><i class="sw" style="background:var(--s1)"></i>Est. BF%</span><span><i class="sw dash" style="--c:var(--s1)"></i>Plan</span><span><i class="sw dash"></i>12% line</span><span><i class="sw band" style="background:var(--s3)"></i>Refeed week</span></div>
+ <div class="wrap short"><canvas id="b"></canvas></div>
+ <p class="note" id="bfnote"></p></div>
+<div class="card"><h2>Calories — intake vs plan</h2>
+ <div class="leg"><span><i class="sw" style="background:var(--s1)"></i>Intake</span><span><i class="sw dash" style="--c:var(--s1)"></i>Planned (phase)</span><span><i class="sw band" style="background:var(--s3)"></i>Refeed week</span></div>
  <div class="wrap short"><canvas id="c"></canvas></div></div>
 <div class="card"><h2>Macros (grams)</h2>
  <div class="leg"><span><i class="sw" style="background:var(--s1)"></i>Protein</span><span><i class="sw" style="background:var(--s2)"></i>Carbs</span><span><i class="sw" style="background:var(--s3)"></i>Fat</span></div>
@@ -80,7 +86,29 @@ tr:last-child td{border-bottom:none}
 <details><summary>Data table (selected range)</summary><div id="tbl"></div></details>
 <script>
 const CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vRCuW-WCVlGerVbYM8zqFGkZlumR8n0yK7ukIiggccqE7QY-xRI3cnEuOr5RnXK2IH1X-ktTOWcF_A_/pub?gid=201512278&single=true&output=csv";
-const GOAL=80,KCAL_DEFAULT=1850;
+const GOAL=80,KCAL_DEFAULT=1850,BF_TARGET=12;
+// ——— The plan (phases, planned kcal, weekly weight waypoints) ———
+const DT=s=>new Date(s+'T00:00:00');
+const PHASES=[
+ {n:'Cut 1',   s:DT('2026-07-29'),e:DT('2026-08-19'),k:1950},
+ {n:'Refeed 1',s:DT('2026-08-20'),e:DT('2026-08-27'),k:2665,refeed:true},
+ {n:'Cut 2',   s:DT('2026-08-28'),e:DT('2026-10-14'),k:1850},
+ {n:'Refeed 2',s:DT('2026-10-15'),e:DT('2026-10-22'),k:2560,refeed:true},
+ {n:'Cut 3',   s:DT('2026-10-23'),e:DT('2026-11-25'),k:1800},
+];
+const WP=[['2026-07-29',88.8],['2026-08-05',88.1],['2026-08-12',87.3],['2026-08-19',86.6],
+ ['2026-08-27',86.6],['2026-09-02',86.0],['2026-09-09',85.4],['2026-09-16',84.8],
+ ['2026-09-23',84.2],['2026-09-30',83.6],['2026-10-07',83.0],['2026-10-14',82.4],
+ ['2026-10-22',82.4],['2026-10-28',81.9],['2026-11-04',81.3],['2026-11-11',80.7],
+ ['2026-11-18',80.2],['2026-11-25',80.0]].map(([d,w])=>[DT(d),w]);
+const PLAN_END=WP[WP.length-1][0];
+const phaseOf=d=>PHASES.find(p=>d>=p.s&&d<=p.e)||null;
+const planW=d=>{if(d<WP[0][0]||d>PLAN_END)return null;
+ for(let i=1;i<WP.length;i++){if(d<=WP[i][0]){const [d0,w0]=WP[i-1],[d1,w1]=WP[i];
+  return w0+(w1-w0)*((d-d0)/(d1-d0))}}return null};
+// BF% calibrated to the plan's anchors (88.8 kg ≈ 18%, 80 kg ≈ 10%) → lean mass ≈ 72–73 kg with slight lean loss over the cut
+const leanAt=w=>72+0.8*(w-80)/8.8;
+const bfOf=w=>w!=null?(w-leanAt(w))/w*100:null;
 let ALL=[],charts=[],range={mode:'preset',days:30,from:null,to:null};
 const $=id=>document.getElementById(id);
 const cv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -127,7 +155,7 @@ function applyRange(){
  else{from=new Date(last);from.setDate(from.getDate()-(range.days-1))}
  const sub=ALL.filter(r=>r.d>=from&&r.d<=to);
  $('from').value=iso(sub.length?sub[0].d:from);$('to').value=iso(to);
- render(sub);
+ render(sub,to.getTime()===last.getTime());
 }
 
 $('filters').addEventListener('click',e=>{
@@ -149,58 +177,111 @@ const crosshair={id:'crosshair',afterDatasetsDraw(ch){
  const x=els[0].element.x,{top,bottom}=ch.chartArea,ctx=ch.ctx;
  ctx.save();ctx.strokeStyle=cv('--baseline');ctx.lineWidth=1;
  ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,bottom);ctx.stroke();ctx.restore();}};
+const hexA=(hex,a)=>{const n=parseInt(hex.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`};
+const refeedBands={id:'refeedBands',beforeDatasetsDraw(ch){
+ const ranges=(ch.options.plugins.refeedBands||{}).ranges||[];if(!ranges.length)return;
+ const xs=ch.scales.x,{top,bottom}=ch.chartArea,ctx=ch.ctx;
+ const half=ch.data.labels.length>1?(xs.getPixelForValue(1)-xs.getPixelForValue(0))/2:4;
+ ctx.save();
+ for(const[a,b]of ranges){
+  const x0=xs.getPixelForValue(a)-half,x1=xs.getPixelForValue(b)+half;
+  ctx.fillStyle=hexA(cv('--s3'),.10);ctx.fillRect(x0,top,x1-x0,bottom-top);
+  ctx.fillStyle=cv('--mut');ctx.font='11px system-ui';ctx.textAlign='center';
+  ctx.fillText('Refeed',(x0+x1)/2,top+12);}
+ ctx.restore();}};
 
-function baseOpts(unit){
+function baseOpts(unit,bands){
  return {responsive:true,maintainAspectRatio:false,animation:false,spanGaps:true,
   interaction:{mode:'index',intersect:false},
-  plugins:{legend:{display:false},tooltip:{
+  plugins:{legend:{display:false},refeedBands:{ranges:bands||[]},tooltip:{
    backgroundColor:cv('--ink'),titleColor:cv('--page'),bodyColor:cv('--page'),
-   padding:10,cornerRadius:8,boxPadding:4,usePointStyle:true,
-   callbacks:{label:c=>{const v=c.parsed.y;return v==null?null:' '+c.dataset.label+': '+(unit==='kg'?v.toFixed(1)+' kg':Math.round(v)+(unit?' '+unit:''))}}}},
+   padding:10,cornerRadius:8,boxPadding:4,usePointStyle:true,filter:c=>c.parsed.y!=null,
+   callbacks:{label:c=>{const v=c.parsed.y;if(v==null)return null;
+    const f=unit==='kg'?v.toFixed(1)+' kg':unit==='%'?v.toFixed(1)+' %':Math.round(v)+(unit?' '+unit:'');
+    return ' '+c.dataset.label+': '+f}}}},
   scales:{x:{grid:{display:false},border:{color:cv('--baseline')},ticks:{maxRotation:0,autoSkip:true,autoSkipPadding:24,color:cv('--mut')}},
-   y:{grid:{color:cv('--grid')},border:{display:false},ticks:{color:cv('--mut'),callback:v=>unit==='kg'?v+' kg':v}}}};
+   y:{grid:{color:cv('--grid')},border:{display:false},ticks:{color:cv('--mut'),callback:v=>unit==='kg'?v+' kg':unit==='%'?v+'%':v}}}};
 }
-function render(sub){
- const L=sub.map(r=>fmtD(r.d)),wt=sub.map(r=>r.wt),avg=sub.map(r=>r.avg),kc=sub.map(r=>r.kc),
-  P=sub.map(r=>r.p),C=sub.map(r=>r.c),F=sub.map(r=>r.f),
-  tgt=sub.some(r=>r.tgt!=null)?sub.map(r=>r.tgt):sub.map(()=>KCAL_DEFAULT);
+function render(sub,atEnd){
+ const lastLog=ALL[ALL.length-1].d;
+ // future dates through the plan's end; presets cap it at the window size, All/custom-at-end shows the full plan
+ let fut=[];
+ if(atEnd&&lastLog<PLAN_END){
+  const cap=range.mode==='preset'&&range.days!=='all'?range.days:1e9;
+  let d=new Date(lastLog);
+  while(fut.length<cap){d=new Date(d);d.setDate(d.getDate()+1);if(d>PLAN_END)break;fut.push(d)}
+ }
+ const n=sub.length,dates=sub.map(r=>r.d).concat(fut),nl=dates.length;
+ const L=dates.map(fmtD);
+ const padF=arr=>arr.concat(fut.map(()=>null));
+ const wt=padF(sub.map(r=>r.wt)),avg=padF(sub.map(r=>r.avg)),kc=padF(sub.map(r=>r.kc)),
+  P=padF(sub.map(r=>r.p)),C=padF(sub.map(r=>r.c)),F=padF(sub.map(r=>r.f));
+ // plan lines span history AND future — actual vs plan on one timeline
+ const planWL=dates.map(d=>{const w=planW(d);return w!=null?+w.toFixed(2):null});
+ const planBF=dates.map(d=>{const w=planW(d);return w!=null?+bfOf(w).toFixed(2):null});
+ const planK=dates.map(d=>{const p=phaseOf(d);return p?p.k:null});
+ const bfAct=padF(sub.map(r=>r.avg!=null?+bfOf(r.avg).toFixed(2):null));
+ // refeed bands in combined index space
+ const bands=[];let s=-1;
+ for(let i=0;i<nl;i++){const p=phaseOf(dates[i]);
+  if(p&&p.refeed){if(s<0)s=i}else if(s>=0){bands.push([s,i-1]);s=-1}}
+ if(s>=0)bands.push([s,nl-1]);
+ // KPIs over selected range
  const wIdx=sub.map((r,i)=>r.wt!=null?i:-1).filter(i=>i>=0);
  const start=wIdx.length?sub[wIdx[0]].wt:null,cur=wIdx.length?sub[wIdx[wIdx.length-1]].wt:null;
  const days=wIdx.length>1?(sub[wIdx[wIdx.length-1]].d-sub[wIdx[0]].d)/864e5:0;
  const lost=start!=null&&cur!=null?start-cur:null;
  const rate=days>0&&lost!=null?lost/days*7:null;
- const kcv=kc.filter(x=>x!=null),kAvg=kcv.length?kcv.reduce((a,b)=>a+b,0)/kcv.length:null;
+ const kcv=sub.map(r=>r.kc).filter(x=>x!=null),kAvg=kcv.length?kcv.reduce((a,b)=>a+b,0)/kcv.length:null;
+ const avAll=ALL.filter(r=>r.avg!=null),lastAvg=avAll.length?avAll[avAll.length-1].avg:null;
+ const bfNow=bfOf(lastAvg);
+ const curPhase=phaseOf(lastLog);
+ const nextRefeed=PHASES.find(p=>p.refeed&&p.e>=lastLog);
+ // first plan day at/below 12% BF
+ let bf12=null;for(let d=new Date(WP[0][0]);d<=PLAN_END;d.setDate(d.getDate()+1)){const w=planW(d);if(w!=null&&bfOf(w)<=BF_TARGET){bf12=new Date(d);break}}
  const kpi=(l,v,d,g)=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="d${g?' g':''}">${d||''}</div></div>`;
  $('kpis').innerHTML=
-  kpi('Start (range)',start!=null?start.toFixed(1)+' kg':'—',wIdx.length?fmtD(sub[wIdx[0]].d):'')+
   kpi('Current',cur!=null?cur.toFixed(1)+' kg':'—',wIdx.length?fmtD(sub[wIdx[wIdx.length-1]].d):'')+
+  kpi('Phase',curPhase?curPhase.n:'—',curPhase?'plan '+curPhase.k+' kcal · ends '+fmtD(curPhase.e):'')+
   kpi('Lost in range',lost!=null?lost.toFixed(1)+' kg':'—',rate!=null?rate.toFixed(2)+' kg/wk':'',lost>0)+
   kpi('Avg intake',kAvg!=null?Math.round(kAvg)+' kcal':'—','over '+kcv.length+' logged days')+
-  kpi('To goal',cur!=null?(cur-GOAL).toFixed(1)+' kg':'—','goal '+GOAL+' kg');
+  kpi('Est. body fat','~'+(bfNow!=null?bfNow.toFixed(1):'—')+'%',bf12?'12% est. '+fmtD(bf12):'')+
+  kpi('To goal',cur!=null?(cur-GOAL).toFixed(1)+' kg':'—','plan: '+fmtD(PLAN_END))+
+  kpi('Next refeed',nextRefeed?fmtD(nextRefeed.s)+' – '+fmtD(nextRefeed.e):'done',nextRefeed?nextRefeed.k+' kcal/day':'');
+ $('bfnote').textContent='Estimated from weight, calibrated to your plan anchors (88.8 kg ≈ 18%, 80 kg ≈ 10% → lean mass ≈ 72–73 kg at 178 cm — consistent with your bench/squat/deadlift). A DEXA or caliper reading shifts the curve, not the trend.';
  charts.forEach(c=>c.destroy());charts=[];
  Chart.defaults.font.family='system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
  Chart.defaults.font.size=12;
- charts.push(new Chart($('w'),{type:'line',plugins:[crosshair],data:{labels:L,datasets:[
+ const dash={borderDash:[5,4],pointRadius:0,pointHoverRadius:4,tension:.2,borderWidth:2};
+ charts.push(new Chart($('w'),{type:'line',plugins:[refeedBands,crosshair],data:{labels:L,datasets:[
   {label:'Daily',data:wt,borderColor:cv('--mut'),borderWidth:1.5,pointRadius:1.5,pointHoverRadius:4,tension:.2},
-  {label:'7-day avg',data:avg,borderColor:cv('--s1'),borderWidth:2.5,pointRadius:0,pointHoverRadius:4,tension:.3}]},
-  options:baseOpts('kg')}));
- charts.push(new Chart($('c'),{type:'line',plugins:[crosshair],data:{labels:L,datasets:[
+  {label:'7-day avg',data:avg,borderColor:cv('--s1'),borderWidth:2.5,pointRadius:0,pointHoverRadius:4,tension:.3},
+  {label:'Plan',data:planWL,borderColor:cv('--s1'),...dash},
+  {label:'Goal',data:L.map(()=>GOAL),borderColor:cv('--baseline'),borderDash:[5,4],borderWidth:1.5,pointRadius:0,pointHoverRadius:0}]},
+  options:baseOpts('kg',bands)}));
+ charts.push(new Chart($('b'),{type:'line',plugins:[refeedBands,crosshair],data:{labels:L,datasets:[
+  {label:'Est. BF',data:bfAct,borderColor:cv('--s1'),borderWidth:2.5,pointRadius:0,pointHoverRadius:4,tension:.3},
+  {label:'Plan',data:planBF,borderColor:cv('--s1'),...dash},
+  {label:'12% line',data:L.map(()=>BF_TARGET),borderColor:cv('--baseline'),borderDash:[5,4],borderWidth:1.5,pointRadius:0,pointHoverRadius:0}]},
+  options:baseOpts('%',bands)}));
+ charts.push(new Chart($('c'),{type:'line',plugins:[refeedBands,crosshair],data:{labels:L,datasets:[
   {label:'Intake',data:kc,borderColor:cv('--s1'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2},
-  {label:'Target',data:tgt,borderColor:cv('--baseline'),borderDash:[5,4],borderWidth:1.5,pointRadius:0,pointHoverRadius:0}]},
-  options:baseOpts('kcal')}));
- charts.push(new Chart($('m'),{type:'line',plugins:[crosshair],data:{labels:L,datasets:[
-  {label:'Protein',data:P,borderColor:cv('--s1'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2},
-  {label:'Carbs',data:C,borderColor:cv('--s2'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2},
-  {label:'Fat',data:F,borderColor:cv('--s3'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2}]},
+  {label:'Planned',data:planK,borderColor:cv('--s1'),borderDash:[5,4],borderWidth:2,pointRadius:0,pointHoverRadius:4,stepped:true}]},
+  options:baseOpts('kcal',bands)}));
+ charts.push(new Chart($('m'),{type:'line',plugins:[crosshair],data:{labels:sub.map(r=>fmtD(r.d)),datasets:[
+  {label:'Protein',data:sub.map(r=>r.p),borderColor:cv('--s1'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2},
+  {label:'Carbs',data:sub.map(r=>r.c),borderColor:cv('--s2'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2},
+  {label:'Fat',data:sub.map(r=>r.f),borderColor:cv('--s3'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2}]},
   options:baseOpts('g')}));
  // table cells use textContent — sheet values are untrusted
  const tbl=$('tbl');tbl.replaceChildren();
  const t=document.createElement('table'),tr=document.createElement('tr');
- ['Date','Weight (kg)','7-day avg','kcal','Protein (g)','Carbs (g)','Fat (g)'].forEach(h=>{const th=document.createElement('th');th.textContent=h;tr.appendChild(th)});
+ ['Date','Phase','Weight (kg)','7-day avg','Plan wt','Est. BF %','kcal','Plan kcal','Protein (g)','Carbs (g)','Fat (g)'].forEach(h=>{const th=document.createElement('th');th.textContent=h;tr.appendChild(th)});
  t.appendChild(tr);
  sub.forEach(r=>{const row=document.createElement('tr');
-  [fmtD(r.d),r.wt!=null?r.wt.toFixed(1):'—',r.avg!=null?r.avg.toFixed(1):'—',
-   r.kc!=null?String(Math.round(r.kc)):'—',r.p!=null?String(Math.round(r.p)):'—',r.c!=null?String(Math.round(r.c)):'—',r.f!=null?String(Math.round(r.f)):'—']
+  const bf=r.avg!=null?bfOf(r.avg):null,pw=planW(r.d),ph=phaseOf(r.d);
+  [fmtD(r.d),ph?ph.n:'—',r.wt!=null?r.wt.toFixed(1):'—',r.avg!=null?r.avg.toFixed(1):'—',pw!=null?pw.toFixed(1):'—',bf!=null?bf.toFixed(1):'—',
+   r.kc!=null?String(Math.round(r.kc)):'—',ph?String(ph.k):'—',r.p!=null?String(Math.round(r.p)):'—',r.c!=null?String(Math.round(r.c)):'—',r.f!=null?String(Math.round(r.f)):'—']
   .forEach(v=>{const td=document.createElement('td');td.textContent=v;row.appendChild(td)});
   t.appendChild(row)});
  tbl.appendChild(t);
