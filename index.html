@@ -106,8 +106,9 @@ const phaseOf=d=>PHASES.find(p=>d>=p.s&&d<=p.e)||null;
 const planW=d=>{if(d<WP[0][0]||d>PLAN_END)return null;
  for(let i=1;i<WP.length;i++){if(d<=WP[i][0]){const [d0,w0]=WP[i-1],[d1,w1]=WP[i];
   return w0+(w1-w0)*((d-d0)/(d1-d0))}}return null};
-// BF% calibrated to the plan's anchors (88.8 kg ≈ 18%, 80 kg ≈ 10%) → lean mass ≈ 72–73 kg with slight lean loss over the cut
-const leanAt=w=>72+0.8*(w-80)/8.8;
+// BF% calibrated to measured anchor 2026-08-23: Navy tape (waist 34", neck 15") = 17.5% at 86.3 kg,
+// cross-checked by energy-balance ledger (17.4%) → lean mass ≈ 71.2 kg, held constant (strength stable, ~all loss is fat)
+const leanAt=w=>71.2;
 const bfOf=w=>w!=null?(w-leanAt(w))/w*100:null;
 let ALL=[],charts=[],range={mode:'preset',days:30,from:null,to:null};
 const $=id=>document.getElementById(id);
@@ -248,7 +249,7 @@ function render(sub,atEnd){
   kpi('Est. body fat','~'+(bfNow!=null?bfNow.toFixed(1):'—')+'%',bf12?'12% est. '+fmtD(bf12):'')+
   kpi('To goal',cur!=null?(cur-GOAL).toFixed(1)+' kg':'—','plan: '+fmtD(PLAN_END))+
   kpi('Next refeed',nextRefeed?fmtD(nextRefeed.s)+' – '+fmtD(nextRefeed.e):'done',nextRefeed?nextRefeed.k+' kcal/day':'');
- $('bfnote').textContent='Estimated from weight, calibrated to your plan anchors (88.8 kg ≈ 18%, 80 kg ≈ 10% → lean mass ≈ 72–73 kg at 178 cm — consistent with your bench/squat/deadlift). A DEXA or caliper reading shifts the curve, not the trend.';
+ $('bfnote').textContent='Calibrated to measured anchor (Aug 23: tape 34"/15" → Navy 17.5% at 86.3 kg, matching the energy-balance ledger) assuming ~71 kg lean mass held constant — supported by stable lifts. Milestones: 15% ≈ 83.8 kg · 12% ≈ 80.9 kg · 10% ≈ 79.1 kg. Re-tape ~Sep 2 post-refeed to tighten.';
  charts.forEach(c=>c.destroy());charts=[];
  Chart.defaults.font.family='system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
  Chart.defaults.font.size=12;
